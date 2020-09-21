@@ -1,34 +1,71 @@
 import React, { useEffect, useState } from "react";
-import SpotifyWebApi from "spotify-web-api-js";
 import "./App.css";
 import Login from "./Components/Login";
 import Player from "./Components/Player";
-import { getToken, tokenGet } from "./spotify";
+import { getToken } from "./spotify";
+import SpotifyWebApi from "spotify-web-api-js";
+import { useStateValue } from "./StateProvider";
+import { AccordionActions } from "@material-ui/core";
 
-const spotify = new SpotifyWebApi(); // instance of spotify
+const spotify = new SpotifyWebApi();
 
 function App() {
-  const [token, setToken] = useState(null);
+  const [{ token }, dispatch] = useStateValue();
 
-  // makes use of token and sets it to setToken  and spotify
   useEffect(() => {
+    // Set token
     const hash = getToken();
     window.location.hash = "";
+    let _token = hash.access_token;
 
-    const _token = hash.access_token;
     if (_token) {
-      setToken(_token);
       spotify.setAccessToken(_token);
 
+      dispatch({
+        type: "SET_TOKEN",
+        token: _token,
+      });
+
+      spotify.getPlaylist("37i9dQZEVXcIRKHw2nK9vd").then((response) =>
+        dispatch({
+          type: "SET_DISCOVER_WEEKLY",
+          discover_weekly: response,
+        })
+      );
+
+      spotify.getMyTopArtists().then((response) =>
+        dispatch({
+          type: "SET_TOP_ARTISTS",
+          top_artists: response,
+        })
+      );
+
+      dispatch({
+        type: "SET_SPOTIFY",
+        spotify,
+      });
+
       spotify.getMe().then((user) => {
-        console.log("🧔", user);
+        dispatch({
+          type: "SET_USER",
+          user,
+        });
+      });
+
+      spotify.getUserPlaylists().then((playlists) => {
+        dispatch({
+          type: "SET_PLAYLISTS",
+          playlists,
+        });
       });
     }
+  }, [token, dispatch]);
 
-    console.log(_token);
-  }, []);
-
-  return <div className="app">{token ? <Player /> : <Login />}</div>;
+  return (
+    <div className="app">
+      {token ? <Player spotify={spotify} /> : <Login />}
+    </div>
+  );
 }
 
 export default App;
